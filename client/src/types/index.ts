@@ -85,6 +85,7 @@ export interface Tournament {
   baseFee: number
   taxPercent: number
   gstPercent: number
+  termsAndConditions?: string
   contact: { name?: string; email?: string; phone?: string }
   social: Record<string, string | undefined>
   registrationRules: {
