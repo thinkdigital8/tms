@@ -110,16 +110,25 @@ async function advanceWinner(match: IMatch) {
   const winnerRef = match.winner === 'sideA' ? match.sideA : match.sideB;
   const loserRef = match.winner === 'sideA' ? match.sideB : match.sideA;
 
+  // The placeholder slot starts as { label: 'TBD' } (no registration/team yet).
+  // $unset the label alongside $set-ing the resolved participant so stale
+  // "TBD" text doesn't linger and shadow the now-known name on the client.
   if (match.nextMatch && match.nextMatchSlot) {
     await Match.findByIdAndUpdate(match.nextMatch, {
-      [`${match.nextMatchSlot}.registration`]: winnerRef.registration,
-      [`${match.nextMatchSlot}.team`]: winnerRef.team,
+      $set: {
+        [`${match.nextMatchSlot}.registration`]: winnerRef.registration,
+        [`${match.nextMatchSlot}.team`]: winnerRef.team,
+      },
+      $unset: { [`${match.nextMatchSlot}.label`]: '' },
     });
   }
   if (match.loserNextMatch && match.loserNextMatchSlot) {
     await Match.findByIdAndUpdate(match.loserNextMatch, {
-      [`${match.loserNextMatchSlot}.registration`]: loserRef.registration,
-      [`${match.loserNextMatchSlot}.team`]: loserRef.team,
+      $set: {
+        [`${match.loserNextMatchSlot}.registration`]: loserRef.registration,
+        [`${match.loserNextMatchSlot}.team`]: loserRef.team,
+      },
+      $unset: { [`${match.loserNextMatchSlot}.label`]: '' },
     });
   }
 }
