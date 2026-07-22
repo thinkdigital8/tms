@@ -1,8 +1,9 @@
 # Tournament Management System (TMS)
 
 A production-grade, API-first Tournament Management System for racket sports
-— Pickleball, Badminton, Tennis, Table Tennis, Squash, Padel, and any future
-sport, with no code changes required to add one.
+— Pickleball, Badminton, Tennis, Table Tennis, Squash, Padel, Racquetball,
+Beach Tennis, Platform Tennis, Frontenis, and any future sport, with no code
+changes required to add one.
 
 Monorepo:
 
@@ -14,7 +15,7 @@ tms/
 
 ## Why this architecture
 
-- **Sport-agnostic core.** `Sport` is a database document (`server/src/models/Sport.ts`), not an enum baked into the code. Pickleball, Badminton, Tennis, Table Tennis, Squash and Padel ship as seed data (`server/src/seed/seed.ts`); onboarding a new racket sport is an insert, not a deploy.
+- **Sport-agnostic core.** `Sport` is a database document (`server/src/models/Sport.ts`), not an enum baked into the code. Pickleball, Badminton, Tennis, Table Tennis, Squash, Padel, Racquetball, Beach Tennis, Platform Tennis and Frontenis ship as seed data (`server/src/seed/seed.ts`); onboarding a new racket sport is an insert, not a deploy.
 - **A real bracket-generation engine, not a stub.** `server/src/modules/draws/engine/` implements Single Elimination, Double Elimination, Round Robin, League, Swiss, Ladder League, Box League, Group Stage + Knockout, and Team League/Knockout as pure, unit-testable functions, independent of Express/Mongo. Run `npx tsx src/modules/draws/engine/__selftest.ts` inside `server/` to verify bracket-size and elimination-count invariants for every format.
 - **Normalized data model** for every entity in the spec (Tournament, Category, Registration, Team, Draw, Round, Match, Schedule, Result, Standing, Ranking, Payment, Sponsor, Venue/Court, Organization, AuditLog, …) — see `server/src/models/`. A few things are deliberately modeled as *states* on one table rather than duplicate tables (see "Design decisions" below).
 - **RBAC with two layers**: coarse global roles (`Role` enum — super_admin, tournament_admin, organizer, club_admin, academy_admin, corporate_admin, referee, umpire, volunteer, player, spectator) and fine-grained per-tournament staff roles (`TournamentStaff` — owner/organizer/referee/umpire/volunteer/scorekeeper) so a "player" globally can be an "organizer" for one specific tournament.
@@ -36,7 +37,7 @@ tms/
 cd server
 cp .env.example .env      # point MONGO_URI at your MongoDB instance
 npm install
-npm run seed               # seeds the 6 sports + a super-admin (admin@tms.dev / ChangeMe123!)
+npm run seed               # seeds the 10 sports + a super-admin (admin@tms.dev / ChangeMe123!)
 npm run dev                 # http://localhost:4000
 ```
 

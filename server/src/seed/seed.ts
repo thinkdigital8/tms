@@ -1,7 +1,9 @@
 /**
- * Seeds the six supported racket sports and a super-admin account for local
+ * Seeds the supported racket sports and a super-admin account for local
  * development. Run with `npm run seed` (requires MONGO_URI reachable).
- * Idempotent — safe to re-run.
+ * Idempotent — safe to re-run. Sport is data-driven (see models/Sport.ts),
+ * so onboarding a new racket sport is just adding an entry here — nothing
+ * in the tournament/draw/scoring engine hardcodes a sport name.
  */
 import { connectDB, disconnectDB } from '../config/db';
 import { Sport } from '../models/Sport';
@@ -15,6 +17,10 @@ const SPORTS = [
   { name: 'Table Tennis', slug: 'table-tennis', scoringConfig: { setsToWin: 3, pointsPerSet: 11, winByMargin: 2 }, isDoublesCapable: true },
   { name: 'Squash', slug: 'squash', scoringConfig: { setsToWin: 3, pointsPerSet: 11, winByMargin: 2 }, isDoublesCapable: false },
   { name: 'Padel', slug: 'padel', scoringConfig: { setsToWin: 2, pointsPerSet: 6, winByMargin: 2, tieBreakAt: 6 }, isDoublesCapable: true, isTeamCapable: true },
+  { name: 'Racquetball', slug: 'racquetball', scoringConfig: { setsToWin: 2, pointsPerSet: 15, winByMargin: 1 }, isDoublesCapable: true },
+  { name: 'Beach Tennis', slug: 'beach-tennis', scoringConfig: { setsToWin: 2, pointsPerSet: 6, winByMargin: 2, tieBreakAt: 6 }, isDoublesCapable: true },
+  { name: 'Platform Tennis', slug: 'platform-tennis', scoringConfig: { setsToWin: 2, pointsPerSet: 6, winByMargin: 2, tieBreakAt: 6 }, isDoublesCapable: true, isTeamCapable: true },
+  { name: 'Frontenis', slug: 'frontenis', scoringConfig: { setsToWin: 1, pointsPerSet: 25, winByMargin: 2 }, isDoublesCapable: true },
 ];
 
 async function main() {
