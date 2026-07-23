@@ -1,17 +1,16 @@
-# Tournament Management System (TMS)
+# Tournament Management System (TMS) — Backend
 
-A production-grade, API-first Tournament Management System for racket sports
-— Pickleball, Badminton, Tennis, Table Tennis, Squash, Padel, Racquetball,
-Beach Tennis, Platform Tennis, Frontenis, and any future sport, with no code
-changes required to add one.
-
-Monorepo:
+A production-grade, API-first Tournament Management System backend for
+racket sports — Pickleball, Badminton, Tennis, Table Tennis, Squash, Padel,
+Racquetball, Beach Tennis, Platform Tennis, Frontenis, and any future sport,
+with no code changes required to add one.
 
 ```
-tms/
-  server/   Node.js + Express + TypeScript + MongoDB (Mongoose) REST API
-  client/   React 19 + TypeScript + Vite + Tailwind CSS v4 + Radix UI
+server/   Node.js + Express + TypeScript + MongoDB (Mongoose) REST API
 ```
+
+> The React frontend for this project lives on the companion
+> `claude/tms-frontend` branch / pull request in this same repository.
 
 ## Why this architecture
 
@@ -31,22 +30,12 @@ tms/
 
 ## Getting started
 
-### Backend
-
 ```bash
 cd server
 cp .env.example .env      # point MONGO_URI at your MongoDB instance
 npm install
 npm run seed               # seeds the 10 sports + a super-admin (admin@tms.dev / ChangeMe123!)
 npm run dev                 # http://localhost:4000
-```
-
-### Frontend
-
-```bash
-cd client
-npm install
-npm run dev                 # http://localhost:5173, proxies /api and /socket.io to :4000
 ```
 
 ### Bracket engine self-test (no DB required)
@@ -84,7 +73,7 @@ Every mutating route is gated by `authenticate` + either `requireRole` (global) 
 
 ## What's implemented vs. scaffolded
 
-**Fully implemented:** data model, RBAC, the 10-format bracket engine, draw persistence with round-by-round match progression (winner/loser auto-advance), registration lifecycle (approval/waitlist/wildcard/check-in), scheduling with conflict detection and rest-time enforcement, live scoring with Socket.IO broadcast, standings computation for round-robin/league/swiss/box formats, ranking-points ledger, CSV report export, and the core frontend flows (auth, tournament discovery, creation wizard, organizer manage panel, bracket/standings viewer, live scoring, rankings).
+**Fully implemented:** data model, RBAC, the 10-format bracket engine, draw persistence with round-by-round match progression (winner/loser auto-advance), registration lifecycle (approval/waitlist/wildcard/check-in), scheduling with conflict detection and rest-time enforcement, live scoring with Socket.IO broadcast, standings computation for round-robin/league/swiss/box formats, ranking-points ledger, CSV report export.
 
 **Integration points left as clean seams, not fake code:** payment provider calls (Stripe/Razorpay — `payments.service.ts` documents exactly where to add the SDK call), notification delivery (email/SMS/WhatsApp/push — `notifications.service.ts`'s `dispatchToProvider` is the single place to wire a real provider; in-app notifications and Socket.IO delivery already work end-to-end today).
 
