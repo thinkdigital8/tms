@@ -16,8 +16,9 @@ export async function registerUser(input: RegisterInput) {
   const existing = await User.findOne({ email: input.email.toLowerCase() });
   if (existing) throw ApiError.conflict('An account with this email already exists');
 
-  // Only a subset of roles may self-register; elevated/staff roles are granted by admins.
-  const selfServiceRoles = [Role.PLAYER, Role.SPECTATOR];
+  // Only a subset of roles may self-register; staff roles (referee/umpire/volunteer)
+  // and admin-tier roles above ORGANIZER are granted by admins, not chosen at signup.
+  const selfServiceRoles = [Role.PLAYER, Role.SPECTATOR, Role.ORGANIZER];
   const role = input.role && selfServiceRoles.includes(input.role) ? input.role : Role.PLAYER;
 
   const user = await User.create({
