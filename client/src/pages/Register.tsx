@@ -8,11 +8,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+type SignupRole = 'player' | 'organizer'
 
 export default function Register() {
   const navigate = useNavigate()
   const { setTokens, setUser } = useAuthStore()
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', country: '' })
+  const [role, setRole] = useState<SignupRole>('player')
   const [loading, setLoading] = useState(false)
 
   function update<K extends keyof typeof form>(key: K, value: string) {
@@ -23,7 +27,7 @@ export default function Register() {
     e.preventDefault()
     setLoading(true)
     try {
-      const { data } = await api.post('/auth/register', form)
+      const { data } = await api.post('/auth/register', { ...form, role })
       setTokens(data.data.accessToken, data.data.refreshToken)
       const me = await api.get('/auth/me')
       setUser(me.data.data)
@@ -62,6 +66,18 @@ export default function Register() {
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="phone">Phone (optional)</Label>
               <Input id="phone" value={form.phone} onChange={(e) => update('phone', e.target.value)} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="role">I want to</Label>
+              <Select value={role} onValueChange={(v) => setRole(v as SignupRole)}>
+                <SelectTrigger id="role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="player">Play in tournaments</SelectItem>
+                  <SelectItem value="organizer">Organize tournaments</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Button type="submit" disabled={loading} className="mt-2">
               {loading ? 'Creating account…' : 'Create account'}
