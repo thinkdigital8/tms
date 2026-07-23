@@ -43,3 +43,33 @@ Point the dev proxy (`client/vite.config.ts`) at wherever the backend
 cd client
 npm run build    # tsc -b && vite build
 ```
+
+Set `VITE_API_URL` (see `client/.env.example`) before building for
+production — it's baked into the bundle at build time, so it must be set
+wherever the build runs, not just on the deployed server. Leave it unset
+for local dev; the Vite proxy handles `/api` and `/socket.io` instead.
+
+## Deploying to Render
+
+This branch includes a `render.yaml` Blueprint that provisions a static
+site for this frontend.
+
+1. In the Render dashboard: **New > Blueprint**, connect the
+   `thinkdigital8/tms` repo, and select the `claude/tms-frontend` branch.
+   Render will read `render.yaml` and create the `tms-frontend` static
+   site.
+2. Deploy the backend first (see the `claude/tms-backend` branch's
+   README) and note its Render URL, e.g.
+   `https://tms-backend.onrender.com`.
+3. In the `tms-frontend` service's **Environment** tab, set
+   `VITE_API_URL` to that backend URL (no trailing slash), then trigger a
+   manual deploy so the build picks it up.
+4. Once the frontend is live, go back to the backend service and set its
+   `CLIENT_URL` env var to this frontend's Render URL (e.g.
+   `https://tms-frontend.onrender.com`) so CORS and Socket.IO allow it,
+   then redeploy the backend.
+
+Without a manual Blueprint, create a **Static Site** by hand: root
+directory `client`, build command `npm install && npm run build`, publish
+directory `dist`, and add a rewrite rule `/*` → `/index.html` so
+client-side routing (React Router) works on refresh/deep links.
