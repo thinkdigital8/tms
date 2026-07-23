@@ -63,6 +63,28 @@ export async function revokeAllSessions(userId: string) {
   await User.findByIdAndUpdate(userId, { $inc: { tokenVersion: 1 } });
 }
 
+/**
+ * Self-service upgrade for a player/spectator who wants to organize
+ * tournaments, so that choice isn't only available at signup time. Only
+ * allowed from the two lowest-privilege roles — anyone already holding a
+ * staff or admin-tier role uses the admin-only PATCH /users/:id/role
+ * instead. Re-issues tokens since role is embedded in the access token.
+ */
+export async function becomeOrganizer(userId: string) {
+  const user = await User.findById(userId);
+  if (!user) throw ApiError.notFound('User not found');
+
+  const upgradeableRoles = [Role.PLAYER, Role.SPECTATOR];
+  if (!upgradeableRoles.includes(user.role)) {
+    throw ApiError.badRequest('Only player or spectator accounts can self-upgrade to organizer');
+  }
+
+  user.role = Role.ORGANIZER;
+  await user.save();
+
+  return issueTokens(user.id, user.role, user.email, user.tokenVersion);
+}
+
 function issueTokens(userId: string, role: Role, email: string, tokenVersion: number) {
   const accessToken = signAccessToken({ sub: userId, role, email });
   const refreshToken = signRefreshToken({ sub: userId, tokenVersion });

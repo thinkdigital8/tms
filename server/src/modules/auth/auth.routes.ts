@@ -14,5 +14,6 @@ router.post('/login', authLimiter, validate(loginSchema), controller.login);
 router.post('/refresh', validate(refreshSchema), controller.refresh);
 router.post('/logout', authenticate, controller.logout);
 router.get('/me', authenticate, controller.me);
+router.post('/become-organizer', authenticate, controller.becomeOrganizer);
 
 export default router;

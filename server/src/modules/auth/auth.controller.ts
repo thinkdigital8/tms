@@ -31,3 +31,9 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
   if (!user) throw ApiError.notFound('User not found');
   ok(res, user);
 });
+
+export const becomeOrganizer = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  const tokens = await authService.becomeOrganizer(req.user.id);
+  ok(res, tokens);
+});
