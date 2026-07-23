@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Download, Rocket, ShieldCheck, Wand2 } from 'lucide-react'
+import { Download, Rocket, ShieldCheck, UserPlus, Wand2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { toast } from '@/store/toast'
-import type { Registration, Tournament, TournamentCategory, TournamentStatus } from '@/types'
+import type { Registration, Tournament, TournamentCategory, TournamentStatus, User } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 
 const NEXT_STATUS: Partial<Record<TournamentStatus, TournamentStatus>> = {
   draft: 'published',
@@ -27,6 +32,13 @@ export default function TournamentManage() {
   const [categories, setCategories] = useState<TournamentCategory[]>([])
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [loading, setLoading] = useState(true)
+
+  const [addPlayerOpen, setAddPlayerOpen] = useState(false)
+  const [addPlayerCategory, setAddPlayerCategory] = useState('')
+  const [playerQuery, setPlayerQuery] = useState('')
+  const [playerResults, setPlayerResults] = useState<User[]>([])
+  const [selectedPlayer, setSelectedPlayer] = useState<User | null>(null)
+  const [addingPlayer, setAddingPlayer] = useState(false)
 
   async function refresh() {
     if (!id) return
@@ -83,6 +95,47 @@ export default function TournamentManage() {
     await api.patch(`/tournaments/${tournament._id}/registrations/${regId}/reject`)
     toast({ title: 'Registration rejected' })
     refresh()
+  }
+
+  useEffect(() => {
+    if (playerQuery.trim().length < 2) {
+      setPlayerResults([])
+      return
+    }
+    const handle = setTimeout(() => {
+      api
+        .get('/users', { params: { q: playerQuery, limit: 8 } })
+        .then((res) => setPlayerResults(res.data.data))
+        .catch(() => setPlayerResults([]))
+    }, 300)
+    return () => clearTimeout(handle)
+  }, [playerQuery])
+
+  function closeAddPlayer() {
+    setAddPlayerOpen(false)
+    setAddPlayerCategory('')
+    setPlayerQuery('')
+    setPlayerResults([])
+    setSelectedPlayer(null)
+  }
+
+  async function addPlayer() {
+    if (!tournament || !addPlayerCategory || !selectedPlayer) return
+    setAddingPlayer(true)
+    try {
+      await api.post(`/tournaments/${tournament._id}/registrations/wildcard`, {
+        categoryId: addPlayerCategory,
+        player: selectedPlayer._id,
+      })
+      toast({ title: `${selectedPlayer.name} added and approved`, variant: 'success' })
+      closeAddPlayer()
+      refresh()
+    } catch (err) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to add player'
+      toast({ title: 'Could not add player', description: message, variant: 'destructive' })
+    } finally {
+      setAddingPlayer(false)
+    }
   }
 
   function downloadReport(type: string) {
@@ -145,8 +198,11 @@ export default function TournamentManage() {
 
         <TabsContent value="registrations">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Registrations ({registrations.length})</CardTitle>
+              <Button size="sm" onClick={() => setAddPlayerOpen(true)} disabled={categories.every((c) => c.isTeamEvent)}>
+                <UserPlus className="h-4 w-4" /> Add Player
+              </Button>
             </CardHeader>
             <CardContent>
               <Table>
@@ -199,6 +255,87 @@ export default function TournamentManage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={addPlayerOpen} onOpenChange={(open) => (open ? setAddPlayerOpen(true) : closeAddPlayer())}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Player</DialogTitle>
+            <DialogDescription>
+              Directly enter a player into a category. They're approved immediately, skipping the normal
+              registration/approval flow — use this for walk-ins, wildcards, or manual entries.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label>Category</Label>
+              <Select value={addPlayerCategory} onValueChange={setAddPlayerCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories
+                    .filter((c) => !c.isTeamEvent)
+                    .map((c) => (
+                      <SelectItem key={c._id} value={c._id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {categories.some((c) => c.isTeamEvent) && (
+                <p className="text-xs text-muted-foreground">Team categories aren't supported here yet — register teams from the Teams area.</p>
+              )}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Player</Label>
+              {selectedPlayer ? (
+                <div className="flex items-center justify-between rounded-lg border border-border p-2.5">
+                  <div>
+                    <p className="text-sm font-medium">{selectedPlayer.name}</p>
+                    <p className="text-xs text-muted-foreground">{selectedPlayer.email}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedPlayer(null)}>
+                    Change
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Input placeholder="Search by name or email…" value={playerQuery} onChange={(e) => setPlayerQuery(e.target.value)} />
+                  {playerResults.length > 0 && (
+                    <div className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-lg border border-border p-1">
+                      {playerResults.map((u) => (
+                        <button
+                          key={u._id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedPlayer(u)
+                            setPlayerResults([])
+                          }}
+                          className={cn('rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-muted')}
+                        >
+                          <span className="font-medium">{u.name}</span>{' '}
+                          <span className="text-xs text-muted-foreground">{u.email}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {playerQuery.trim().length >= 2 && playerResults.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No matching users.</p>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeAddPlayer}>
+              Cancel
+            </Button>
+            <Button onClick={addPlayer} disabled={!addPlayerCategory || !selectedPlayer || addingPlayer}>
+              {addingPlayer ? 'Adding…' : 'Add Player'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
