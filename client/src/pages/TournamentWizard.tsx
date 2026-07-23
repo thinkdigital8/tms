@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '@/lib/api'
 import { toast } from '@/store/toast'
-import type { Sport, TournamentFormat, TournamentType } from '@/types'
+import { useAuthStore } from '@/store/auth'
+import type { Role, Sport, TournamentFormat, TournamentType } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,6 +16,9 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
 const STEPS = ['Basics', 'Schedule & Fees', 'Registration Rules', 'Categories', 'Review']
+
+// Mirrors TOURNAMENT_MANAGING_ROLES in server/src/common/types/roles.ts.
+const TOURNAMENT_MANAGING_ROLES: Role[] = ['super_admin', 'tournament_admin', 'organizer', 'club_admin', 'academy_admin', 'corporate_admin']
 
 const TOURNAMENT_TYPES: { value: TournamentType; label: string; hint: string }[] = [
   { value: 'public', label: 'Public', hint: 'Anyone can register' },
@@ -52,9 +56,29 @@ interface CategoryDraft {
 
 export default function TournamentWizard() {
   const navigate = useNavigate()
+  const { user, setTokens, setUser } = useAuthStore()
   const [step, setStep] = useState(0)
   const [sports, setSports] = useState<Sport[]>([])
   const [saving, setSaving] = useState(false)
+  const [upgrading, setUpgrading] = useState(false)
+
+  const canManageTournaments = !!user && TOURNAMENT_MANAGING_ROLES.includes(user.role)
+
+  async function handleBecomeOrganizer() {
+    setUpgrading(true)
+    try {
+      const { data } = await api.post('/auth/become-organizer')
+      setTokens(data.data.accessToken, data.data.refreshToken)
+      const me = await api.get('/auth/me')
+      setUser(me.data.data)
+      toast({ title: "You're now an organizer", variant: 'success' })
+    } catch (err) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Could not upgrade account'
+      toast({ title: 'Could not upgrade account', description: message, variant: 'destructive' })
+    } finally {
+      setUpgrading(false)
+    }
+  }
 
   const [basics, setBasics] = useState({ name: '', description: '', sport: '', type: 'public' as TournamentType })
   const [schedule, setSchedule] = useState({
@@ -149,6 +173,27 @@ export default function TournamentWizard() {
     } finally {
       setSaving(false)
     }
+  }
+
+  if (!canManageTournaments) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16">
+        <Card>
+          <CardHeader>
+            <CardTitle>Become an organizer</CardTitle>
+            <CardDescription>
+              Your account is currently a {user?.role ?? 'guest'}. Creating tournaments requires an organizer
+              account — it's free and instant.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={handleBecomeOrganizer} disabled={upgrading} className="w-full">
+              {upgrading ? 'Upgrading…' : 'Become an organizer'}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
