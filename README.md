@@ -80,3 +80,49 @@ Every mutating route is gated by `authenticate` + either `requireRole` (global) 
 ## Environment
 
 See `server/.env.example` for all configuration (Mongo URI, JWT secrets, payment/notification provider keys).
+
+## Deploying to Render
+
+This branch includes a `render.yaml` Blueprint that provisions a Node web
+service for the API. Render has no managed MongoDB, so the database is
+[MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register) (free M0
+tier is enough to get started).
+
+### 1. Create the Atlas database
+
+1. Sign up / log in at Atlas, create a free (M0) cluster.
+2. **Database Access** → add a database user with a password (not your
+   Atlas login).
+3. **Network Access** → add `0.0.0.0/0` (allow access from anywhere) so
+   Render's dynamic IPs can connect — Render doesn't publish static
+   outbound IPs on the free plan.
+4. **Connect** → "Drivers" → copy the `mongodb+srv://...` connection
+   string, substitute your database user's password, and append a
+   database name, e.g. `.../tms?retryWrites=true&w=majority`.
+
+### 2. Deploy the API on Render
+
+1. In the Render dashboard: **New > Blueprint**, connect the
+   `thinkdigital8/tms` repo, and select the `claude/tms-backend` branch.
+   Render will read `render.yaml` and create the `tms-backend` web
+   service (JWT secrets are auto-generated).
+2. In the service's **Environment** tab, set `MONGO_URI` to the Atlas
+   connection string from step 1.
+3. Deploy the frontend (see the `claude/tms-frontend` branch's README)
+   and note its Render URL, e.g. `https://tms-frontend.onrender.com`.
+   Set `CLIENT_URL` on this service to that URL so CORS and Socket.IO
+   accept requests from it, then redeploy.
+4. Once live, seed the sports + a super-admin: open a shell on the
+   Render service (**Shell** tab) and run `npm run seed`, or run it
+   locally with `MONGO_URI` pointed at the same Atlas cluster.
+5. Confirm it's up: `curl https://tms-backend.onrender.com/health`.
+
+Without a manual Blueprint, create a **Web Service** by hand: root
+directory `server`, build command `npm install && npm run build`, start
+command `npm start`, health check path `/health`, and the env vars listed
+in `render.yaml`.
+
+Render's free-plan web services spin down after inactivity and take
+~30-60s to wake on the next request — fine for evaluation, not for a
+production tournament day. Upgrade the plan (or use a paid instance)
+before relying on this for a live event.
