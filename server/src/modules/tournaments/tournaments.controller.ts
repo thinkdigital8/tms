@@ -21,8 +21,11 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
     publishedOnly: req.query.mine !== 'true',
   });
 
+  const sortOption: Record<string, 1 | -1> =
+    req.query.sort === 'popular' ? { viewCount: -1 } : req.query.sort === 'recent' ? { createdAt: -1 } : { startDate: 1 };
+
   const [items, total] = await Promise.all([
-    Tournament.find(filter).populate('sport', 'name slug').sort({ startDate: 1 }).skip(skip).limit(limit),
+    Tournament.find(filter).populate('sport', 'name slug').sort(sortOption).skip(skip).limit(limit),
     Tournament.countDocuments(filter),
   ]);
   paginated(res, items, page, limit, total);

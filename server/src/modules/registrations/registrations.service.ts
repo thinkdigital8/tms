@@ -17,7 +17,30 @@ export interface RegisterEntryInput {
   medicalDeclarationAcknowledged?: boolean;
 }
 
-export async function registerEntry(user: AuthUser, tournamentId: string, input: RegisterEntryInput) {
+export interface RegisterEntryOptions {
+  /**
+   * Bypasses the public registration-window checks (tournament status, category
+   * status, and close-date lateness). Set for staff-initiated entries (wildcard /
+   * organizer manual add) — those are an explicit override, not a public
+   * self-registration, so they're only blocked once the draw exists (past that
+   * point a new entrant has nowhere to go in the bracket).
+   */
+  isStaffEntry?: boolean;
+}
+
+const DRAW_LOCKED_STATUSES = [
+  TournamentStatus.DRAW_PUBLISHED,
+  TournamentStatus.IN_PROGRESS,
+  TournamentStatus.COMPLETED,
+  TournamentStatus.CANCELLED,
+];
+
+export async function registerEntry(
+  user: AuthUser,
+  tournamentId: string,
+  input: RegisterEntryInput,
+  options: RegisterEntryOptions = {}
+) {
   const [tournament, category] = await Promise.all([
     Tournament.findById(tournamentId),
     TournamentCategory.findOne({ _id: input.categoryId, tournament: tournamentId }),
@@ -25,19 +48,25 @@ export async function registerEntry(user: AuthUser, tournamentId: string, input:
   if (!tournament) throw ApiError.notFound('Tournament not found');
   if (!category) throw ApiError.notFound('Category not found');
 
-  if (![TournamentStatus.REGISTRATION_OPEN, TournamentStatus.PUBLISHED].includes(tournament.status)) {
-    if (!(tournament.status === TournamentStatus.REGISTRATION_CLOSED && tournament.registrationRules.lateEntryAllowed)) {
-      throw ApiError.badRequest('Registration is not currently open for this tournament');
+  if (options.isStaffEntry) {
+    if (DRAW_LOCKED_STATUSES.includes(tournament.status) || ['draw_published', 'in_progress', 'completed'].includes(category.status)) {
+      throw ApiError.badRequest('Cannot add entries once the draw has been published');
     }
-  }
-  if (category.status !== 'open' && category.status !== 'draft') {
-    throw ApiError.badRequest('This category is no longer accepting registrations');
+  } else {
+    if (![TournamentStatus.REGISTRATION_OPEN, TournamentStatus.PUBLISHED].includes(tournament.status)) {
+      if (!(tournament.status === TournamentStatus.REGISTRATION_CLOSED && tournament.registrationRules.lateEntryAllowed)) {
+        throw ApiError.badRequest('Registration is not currently open for this tournament');
+      }
+    }
+    if (category.status !== 'open' && category.status !== 'draft') {
+      throw ApiError.badRequest('This category is no longer accepting registrations');
+    }
   }
 
   const now = new Date();
   const closeAt = category.registrationCloseAt ?? tournament.registrationCloseAt;
   const isLate = now > closeAt;
-  if (isLate && !tournament.registrationRules.lateEntryAllowed) {
+  if (!options.isStaffEntry && isLate && !tournament.registrationRules.lateEntryAllowed) {
     throw ApiError.badRequest('Registration for this category has closed');
   }
 
@@ -168,7 +197,7 @@ export async function promoteFromWaitlist(categoryId: string) {
 export async function grantWildcard(categoryId: string, registrationInput: RegisterEntryInput, tournamentId: string, grantedBy: AuthUser) {
   const category = await TournamentCategory.findById(categoryId);
   if (!category) throw ApiError.notFound('Category not found');
-  const registration = await registerEntry(grantedBy, tournamentId, registrationInput);
+  const registration = await registerEntry(grantedBy, tournamentId, { ...registrationInput, categoryId }, { isStaffEntry: true });
   registration.status = RegistrationStatus.APPROVED;
   registration.entryType = RegistrationEntryType.WILDCARD;
   registration.approvedBy = grantedBy.id as unknown as typeof registration.approvedBy;
