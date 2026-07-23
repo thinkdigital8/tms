@@ -168,7 +168,7 @@ export async function promoteFromWaitlist(categoryId: string) {
 export async function grantWildcard(categoryId: string, registrationInput: RegisterEntryInput, tournamentId: string, grantedBy: AuthUser) {
   const category = await TournamentCategory.findById(categoryId);
   if (!category) throw ApiError.notFound('Category not found');
-  const registration = await registerEntry(grantedBy, tournamentId, registrationInput);
+  const registration = await registerEntry(grantedBy, tournamentId, { ...registrationInput, categoryId });
   registration.status = RegistrationStatus.APPROVED;
   registration.entryType = RegistrationEntryType.WILDCARD;
   registration.approvedBy = grantedBy.id as unknown as typeof registration.approvedBy;
