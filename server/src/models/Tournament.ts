@@ -91,6 +91,7 @@ export interface ITournament extends Document {
 
   isPublished: boolean;
   isFeatured: boolean;
+  viewCount: number;
   createdBy: Types.ObjectId;
 
   createdAt: Date;
@@ -179,6 +180,7 @@ const tournamentSchema = new Schema<ITournament>(
 
     isPublished: { type: Boolean, default: false },
     isFeatured: { type: Boolean, default: false },
+    viewCount: { type: Number, default: 0 },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: true }
@@ -187,5 +189,6 @@ const tournamentSchema = new Schema<ITournament>(
 tournamentSchema.index({ name: 'text', description: 'text' });
 tournamentSchema.index({ status: 1, startDate: 1 });
 tournamentSchema.index({ type: 1, status: 1 });
+tournamentSchema.index({ viewCount: -1 });
 
 export const Tournament = model<ITournament>('Tournament', tournamentSchema);

@@ -9,6 +9,9 @@ import { Registration } from '../../models/Registration';
 import { Team } from '../../models/Team';
 import { Match } from '../../models/Match';
 import { Standing } from '../../models/Standing';
+import { Organization } from '../../models/Organization';
+import { User } from '../../models/User';
+import { Role } from '../../common/types/roles';
 
 /**
  * Single aggregate endpoint powering the public tournament page: banner,
@@ -18,10 +21,38 @@ import { Standing } from '../../models/Standing';
  */
 const router = Router();
 
+/**
+ * Unified search across tournaments, clubs/academies/companies and players
+ * for the global nav search box. Unauthenticated, so player results are
+ * limited to name/avatar/country — no email or other contact info.
+ */
+router.get(
+  '/search',
+  asyncHandler(async (req, res) => {
+    const q = String(req.query.q ?? '').trim();
+    if (q.length < 2) return ok(res, { tournaments: [], clubs: [], players: [] });
+
+    const nameRegex = { $regex: q, $options: 'i' };
+    const limit = 6;
+
+    const [tournaments, clubs, players] = await Promise.all([
+      Tournament.find({ isPublished: true, name: nameRegex }).select('name slug status startDate').populate('sport', 'name slug').limit(limit),
+      Organization.find({ orgType: { $in: ['club', 'academy', 'company'] }, name: nameRegex }).select('name orgType logoUrl city country').limit(limit),
+      User.find({ role: Role.PLAYER, isActive: true, name: nameRegex }).select('name avatarUrl country').limit(limit),
+    ]);
+
+    ok(res, { tournaments, clubs, players });
+  })
+);
+
 router.get(
   '/tournaments/:slug',
   asyncHandler(async (req, res) => {
-    const tournament = await Tournament.findOne({ slug: req.params.slug, isPublished: true })
+    const tournament = await Tournament.findOneAndUpdate(
+      { slug: req.params.slug, isPublished: true },
+      { $inc: { viewCount: 1 } },
+      { new: true }
+    )
       .populate('sport')
       .populate('venues')
       .populate('primaryVenue')
