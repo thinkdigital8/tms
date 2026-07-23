@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { CalendarDays, MapPin, Mail, Phone, Globe, Share2, Trophy, Radio } from 'lucide-react'
 import { api } from '@/lib/api'
+import { getSocket } from '@/lib/socket'
 import type { Tournament, TournamentCategory, Match } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -9,6 +10,33 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import { toast } from '@/store/toast'
+
+interface MatchUpdatePayload {
+  matchId: string
+  status: Match['status']
+  sets: Match['sets']
+  winner?: Match['winner']
+}
+
+function applyMatchUpdate(prev: PublicPayload, payload: MatchUpdatePayload): PublicPayload {
+  const patch = (m: Match): Match => (m._id === payload.matchId ? { ...m, status: payload.status, sets: payload.sets, winner: payload.winner } : m)
+
+  let liveMatches = prev.liveMatches.map(patch)
+  let upcomingMatches = prev.upcomingMatches.map(patch)
+  const wasLive = prev.liveMatches.some((m) => m._id === payload.matchId)
+
+  if (payload.status === 'in_progress' && !wasLive) {
+    const promoted = upcomingMatches.find((m) => m._id === payload.matchId)
+    if (promoted) {
+      liveMatches = [...liveMatches, patch(promoted)]
+      upcomingMatches = upcomingMatches.filter((m) => m._id !== payload.matchId)
+    }
+  } else if (payload.status !== 'in_progress' && wasLive) {
+    liveMatches = liveMatches.filter((m) => m._id !== payload.matchId)
+  }
+
+  return { ...prev, liveMatches, upcomingMatches }
+}
 
 interface PublicPayload {
   tournament: Tournament
@@ -41,6 +69,20 @@ export default function TournamentPublic() {
       .then((res) => setData(res.data.data))
       .finally(() => setLoading(false))
   }, [slug])
+
+  useEffect(() => {
+    const tournamentId = data?.tournament._id
+    if (!tournamentId) return
+    const socket = getSocket()
+    socket.emit('join:tournament', tournamentId)
+    const onMatchUpdate = (payload: MatchUpdatePayload) => setData((prev) => (prev ? applyMatchUpdate(prev, payload) : prev))
+    socket.on('match:update', onMatchUpdate)
+    return () => {
+      socket.emit('leave:tournament', tournamentId)
+      socket.off('match:update', onMatchUpdate)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.tournament._id])
 
   if (loading) return <div className="mx-auto max-w-5xl px-4 py-20 text-center text-muted-foreground">Loading tournament…</div>
   if (!data) return <div className="mx-auto max-w-5xl px-4 py-20 text-center text-muted-foreground">Tournament not found.</div>
@@ -119,10 +161,42 @@ export default function TournamentPublic() {
         <Tabs defaultValue="overview" className="mb-10">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="live">
+              Live{liveMatches.length > 0 && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-destructive" />}
+            </TabsTrigger>
             <TabsTrigger value="categories">Categories</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="sponsors">Sponsors</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="live">
+            {liveMatches.length === 0 ? (
+              <p className="py-16 text-center text-muted-foreground">No matches in progress right now — scores update here automatically once play starts.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {liveMatches.map((m) => (
+                  <Card key={m._id} className="border-destructive/40">
+                    <CardContent className="pt-5">
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase text-destructive">
+                          <Radio className="h-3.5 w-3.5 animate-pulse" /> Live
+                        </span>
+                        {typeof m.court === 'object' && m.court && <span className="text-xs text-muted-foreground">Court {m.court.name}</span>}
+                      </div>
+                      <div className="flex items-center justify-between py-1.5">
+                        <span className="text-lg font-medium">{sideLabel(m.sideA)}</span>
+                        <span className="font-mono text-lg">{m.sets.map((s) => s.sideA).join(' - ')}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-1.5">
+                        <span className="text-lg font-medium">{sideLabel(m.sideB)}</span>
+                        <span className="font-mono text-lg">{m.sets.map((s) => s.sideB).join(' - ')}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
           <TabsContent value="overview">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

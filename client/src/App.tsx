@@ -11,6 +11,8 @@ import BracketView from '@/pages/BracketView'
 import LiveScoring from '@/pages/LiveScoring'
 import Rankings from '@/pages/Rankings'
 import Profile from '@/pages/Profile'
+import ClubsList from '@/pages/ClubsList'
+import ClubDetail from '@/pages/ClubDetail'
 import NotFound from '@/pages/NotFound'
 import { RequireAuth } from '@/components/layout/RequireAuth'
 
@@ -22,6 +24,8 @@ export default function App() {
           <Route index element={<Navigate to="/tournaments" replace />} />
           <Route path="tournaments" element={<TournamentsList />} />
           <Route path="rankings" element={<Rankings />} />
+          <Route path="clubs" element={<ClubsList />} />
+          <Route path="clubs/:id" element={<ClubDetail />} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
           <Route path="t/:slug" element={<TournamentPublic />} />

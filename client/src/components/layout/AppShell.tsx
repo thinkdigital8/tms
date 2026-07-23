@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { initials } from '@/lib/utils'
 import { Toaster } from '@/components/ui/toaster'
+import { GlobalSearch } from '@/components/layout/GlobalSearch'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `text-sm font-medium transition-colors hover:text-foreground ${isActive ? 'text-foreground' : 'text-muted-foreground'}`
@@ -41,6 +42,9 @@ export function AppShell() {
               <NavLink to="/rankings" className={navLinkClass}>
                 Rankings
               </NavLink>
+              <NavLink to="/clubs" className={navLinkClass}>
+                Clubs
+              </NavLink>
               {user && (
                 <NavLink to="/dashboard" className={navLinkClass}>
                   Dashboard
@@ -50,6 +54,7 @@ export function AppShell() {
           </div>
 
           <div className="flex items-center gap-2">
+            <GlobalSearch />
             <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
@@ -106,6 +111,9 @@ export function AppShell() {
             </NavLink>
             <NavLink to="/rankings" className={navLinkClass} onClick={() => setMobileOpen(false)}>
               Rankings
+            </NavLink>
+            <NavLink to="/clubs" className={navLinkClass} onClick={() => setMobileOpen(false)}>
+              Clubs
             </NavLink>
             {!user && (
               <div className="flex gap-2 pt-2">

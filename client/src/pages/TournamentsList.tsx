@@ -7,6 +7,17 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+
+type FilterKey = 'all' | 'week' | 'upcoming' | 'recent' | 'popular'
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'week', label: 'This week' },
+  { key: 'upcoming', label: 'Upcoming' },
+  { key: 'recent', label: 'Recently added' },
+  { key: 'popular', label: 'Most visited' },
+]
 
 const TYPE_LABELS: Record<string, string> = {
   public: 'Public',
@@ -22,17 +33,31 @@ export default function TournamentsList() {
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
+  const [filter, setFilter] = useState<FilterKey>('all')
 
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true)
+
+    const params: Record<string, string | number> = { q: q || undefined, limit: 30 } as Record<string, string | number>
+    if (filter === 'week') {
+      params.from = new Date().toISOString()
+      params.to = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    } else if (filter === 'upcoming') {
+      params.from = new Date().toISOString()
+    } else if (filter === 'recent') {
+      params.sort = 'recent'
+    } else if (filter === 'popular') {
+      params.sort = 'popular'
+    }
+
     api
-      .get('/tournaments', { params: { q: q || undefined, limit: 30 }, signal: controller.signal })
+      .get('/tournaments', { params, signal: controller.signal })
       .then((res) => setTournaments(res.data.data))
       .catch(() => {})
       .finally(() => setLoading(false))
     return () => controller.abort()
-  }, [q])
+  }, [q, filter])
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
@@ -45,6 +70,21 @@ export default function TournamentsList() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Search tournaments…" className="pl-9" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
+      </div>
+
+      <div className="mb-6 flex flex-wrap gap-2">
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className={cn(
+              'rounded-full border px-3 py-1.5 text-sm transition-colors',
+              filter === f.key ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-muted'
+            )}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {loading ? (

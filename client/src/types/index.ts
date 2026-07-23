@@ -104,6 +104,25 @@ export interface Tournament {
   }
   isPublished: boolean
   isFeatured: boolean
+  viewCount: number
+}
+
+export type OrgType = 'club' | 'academy' | 'company' | 'federation'
+
+export interface Organization {
+  _id: string
+  orgType: OrgType
+  name: string
+  logoUrl?: string
+  description?: string
+  country?: string
+  city?: string
+  address?: string
+  contactEmail?: string
+  contactPhone?: string
+  website?: string
+  isNationalFederation?: boolean
+  isVerified: boolean
 }
 
 export interface TournamentCategory {
